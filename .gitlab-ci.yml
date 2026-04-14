@@ -1,0 +1,41 @@
+stages:
+  - build
+  - test
+  - publish
+
+variables:
+  DOTNET_VERSION: "8.0"
+  IMAGE_NAME: taskservice
+
+default:
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  before_script:
+    - dotnet restore TaskService.sln
+
+build:
+  stage: build
+  script:
+    - dotnet build TaskService.sln --no-restore -c Release
+  artifacts:
+    paths:
+      - src/*/bin/Release
+    expire_in: 1 hour
+
+test:
+  stage: test
+  script:
+    - dotnet test TaskService.sln --no-restore -c Release --logger "junit;LogFilePath=TestResults/results.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: "**/TestResults/results.xml"
+
+publish:
+  stage: publish
+  script:
+    - dotnet publish src/TaskService.Api/TaskService.csproj --no-restore -c Release -o /app/publish /p:UseAppHost=false
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_NAME:$CI_COMMIT_SHORT_SHA $IMAGE_NAME:latest
+  only:
+    - main
+    - master

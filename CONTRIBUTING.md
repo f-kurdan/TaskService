@@ -1,57 +1,87 @@
-﻿# Руководство по изменениям
+# Руководство по изменениям
 
 ## Структура репозитория
-* `src/` - исходный код приложения по слоям `API`, `Application`, `Domain`, `Infrastructure`.
-* `docs/` - документация по сервису и принятым решениям.
-* `tests/` - автоматические тесты и материалы для проверки.
-* корневые `UIEngine.sln`, `Dockerfile`, `docker-compose.yml`, `.gitlab-ci.yml` используются для сборки и поставки.
+
+- `src/` — исходный код по слоям: `Api`, `Application`, `Domain`, `Infrastructure`
+- `tests/` — автоматические тесты
+- `docs/` — документация и принятые решения
+- Корневые `TaskService.sln`, `Dockerfile`, `docker-compose.yml`, `.gitlab-ci.yml` — сборка и поставка
 
 Не размещайте исходный код и служебные файлы вне этих каталогов без отдельной договорённости.
 
 ## Целевая версия .NET
-* **net8.0**
+
+**net8.0**
 
 ## Зависимости
+
 ### NuGet-пакеты
-* **Microsoft.AspNetCore.Authentication.JwtBearer**
-* **Swashbuckle.AspNetCore**
-* **Microsoft.EntityFrameworkCore**
-* **Npgsql.EntityFrameworkCore.PostgreSQL**
-* **PIT.Infrastructure**
-* **Serilog.AspNetCore**
-* **DynamicDirectories.Client**
-* **PIT.HybridCache**
-* **PIT.Tarantool**
-* **TarantoolClient**
+
+- `Microsoft.AspNetCore.OpenApi`
+- `Swashbuckle.AspNetCore`
+- `Microsoft.EntityFrameworkCore`
+- `Npgsql.EntityFrameworkCore.PostgreSQL`
 
 ### Зависимые сервисы
-* `PostgreSQL` или основное хранилище: проверьте доступность и корректность строки подключения там, где это применимо.
-* `AuthService`: проверьте настройки аутентификации и авторизации, если сервис защищён через JWT.
-* `CardService`: проверьте доступность внешнего API, если сервис зависит от карточных API.
-* `Tarantool`: проверьте доступность кэша или хранилища, если сервис его использует.
-* `PIT.Infrastructure`: предоставляет логирование, телеметрию, health checks и общую API-инфраструктуру.
+
+- **PostgreSQL** — основное хранилище данных. Убедитесь, что БД доступна и строка подключения корректна.
 
 ## Локальный запуск
-* Проверьте, что в `src/UIEngine.API/appsettings.json` корректно заполнены следующие секции: `ConnectionStrings`, `CardService`, `Infrastructure`, `AuthService`, `Tarantool`, `Caching`, `SidebarConfigStorage`.
-* Если вы проверяете локальную инициализацию ролевых sidebar-конфигов, заполните секцию `SidebarConfigInitialization` в `src/UIEngine.API/appsettings.Development.json`.
-* Убедитесь, что сервис собирается и запускается локально без ошибок.
-* При необходимости поднимите внешние зависимости локально или укажите общую тестовую среду.
-* Команда запуска: `dotnet run --project src/UIEngine.API/UIEngine.API.csproj`
+
+1. Проверьте, что в `src/TaskService.Api/appsettings.json` заполнена секция `ConnectionStrings:DefaultConnection`.
+2. Убедитесь, что PostgreSQL запущен и доступен на указанном хосте.
+3. Примените миграции:
+
+```bash
+dotnet ef database update \
+  --project src/TaskService.Infrastructure/TaskService.Infrastructure.csproj \
+  --startup-project src/TaskService.Api/TaskService.csproj \
+  --context AppDbContext
+```
+
+4. Запустите сервис:
+
+```bash
+dotnet run --project src/TaskService.Api/TaskService.csproj
+```
 
 ### Базовые команды
-* `dotnet restore UIEngine.sln`
-* `dotnet build UIEngine.sln`
-* `dotnet run --project src/UIEngine.API/UIEngine.API.csproj`
+
+```bash
+dotnet restore TaskService.sln
+dotnet build TaskService.sln
+dotnet test TaskService.sln
+```
+
+## Миграции EF Core
+
+**Создать новую миграцию:**
+
+```bash
+dotnet ef migrations add <MigrationName> \
+  --project src/TaskService.Infrastructure/TaskService.Infrastructure.csproj \
+  --startup-project src/TaskService.Api/TaskService.csproj \
+  --context AppDbContext \
+  --output-dir Persistence/Migrations
+```
+
+**Применить миграции:**
+
+```bash
+dotnet ef database update \
+  --project src/TaskService.Infrastructure/TaskService.Infrastructure.csproj \
+  --startup-project src/TaskService.Api/TaskService.csproj \
+  --context AppDbContext
+```
 
 ## Чек-лист для MR
-* Проект собирается без ошибок.
-* Проверена совместимость зависимых сервисов и пакетов.
-* Сервис запускается локально без ошибок.
-* Проверено подключение к базе данных или хранилищу там, где это применимо.
-* Проверена интеграция с `AuthService`.
-* Проверена интеграция с `CardService`.
-* Проверена доступность `Tarantool` там, где это применимо.
-* `OpenAPI` / `Swagger` открывается корректно, если сервис публикует HTTP API.
-* Версия в `.csproj` обновлена при необходимости.
-* CI pipeline прошёл успешно.
-* Документация обновлена при необходимости.
+
+- [ ] Проект собирается без ошибок (`dotnet build`)
+- [ ] Все тесты проходят (`dotnet test`)
+- [ ] Если изменена EF-модель — добавлена миграция и обновлён `ModelSnapshot`
+- [ ] Swagger UI открывается корректно (`/swagger`)
+- [ ] `swagger/v1/swagger.json` отдаётся без ошибок
+- [ ] Подключение к PostgreSQL проверено локально
+- [ ] Версия в `.csproj` обновлена при необходимости
+- [ ] CI pipeline прошёл успешно
+- [ ] Документация обновлена при необходимости
